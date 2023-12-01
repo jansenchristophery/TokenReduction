@@ -33,8 +33,8 @@ wandb.login()
 
 def get_args_parser():
     parser = argparse.ArgumentParser('DeiT training and evaluation script', add_help=False)
-    parser.add_argument('--batch-size', default=64, type=int)
-    parser.add_argument('--epochs', default=300, type=int)
+    parser.add_argument('--batch-size', default=32, type=int)
+    parser.add_argument('--epochs', default=50, type=int)
     parser.add_argument('--bce-loss', action='store_true')
     parser.add_argument('--unscale-lr', action='store_true')
 
@@ -45,7 +45,7 @@ def get_args_parser():
 
     parser.add_argument('--drop', type=float, default=0.0, metavar='PCT',
                         help='Dropout rate (default: 0.)')
-    parser.add_argument('--drop-path', type=float, default=0.1, metavar='PCT',
+    parser.add_argument('--drop-path', type=float, default=0.0, metavar='PCT',
                         help='Drop path rate (default: 0.1)')
 
     parser.add_argument('--model-ema', action='store_true')
@@ -87,7 +87,7 @@ def get_args_parser():
                         help='epoch interval to decay LR')
     parser.add_argument('--warmup-epochs', type=int, default=5, metavar='N',
                         help='epochs to warmup LR, if scheduler supports')
-    parser.add_argument('--cooldown-epochs', type=int, default=0, metavar='N',
+    parser.add_argument('--cooldown-epochs', type=int, default=10, metavar='N',
                         help='epochs to cooldown LR at min_lr, after cyclic schedule ends')
     parser.add_argument('--patience-epochs', type=int, default=10, metavar='N',
                         help='patience epochs for Plateau LR scheduler (default: 10')
@@ -100,7 +100,7 @@ def get_args_parser():
     parser.add_argument('--aa', type=str, default='rand-m9-mstd0.5-inc1', metavar='NAME',
                         help='Use AutoAugment policy. "v0" or "original". " + \
                              "(default: rand-m9-mstd0.5-inc1)'),
-    parser.add_argument('--smoothing', type=float, default=0.1, help='Label smoothing (default: 0.1)')
+    parser.add_argument('--smoothing', type=float, default=0.0, help='Label smoothing (default: 0.1)')
     parser.add_argument('--train-interpolation', type=str, default='bicubic',
                         help='Training interpolation (random, bilinear, bicubic default: "bicubic")')
 
@@ -127,15 +127,15 @@ def get_args_parser():
                         help='Do not random erase first (clean) augmentation split')
 
     # * Mixup params
-    parser.add_argument('--mixup', type=float, default=0.8,
+    parser.add_argument('--mixup', type=float, default=0.0,
                         help='mixup alpha, mixup enabled if > 0. (default: 0.8)')
-    parser.add_argument('--cutmix', type=float, default=1.0,
+    parser.add_argument('--cutmix', type=float, default=0.0,
                         help='cutmix alpha, cutmix enabled if > 0. (default: 1.0)')
     parser.add_argument('--cutmix-minmax', type=float, nargs='+', default=None,
                         help='cutmix min/max ratio, overrides alpha and enables cutmix if set (default: None)')
-    parser.add_argument('--mixup-prob', type=float, default=1.0,
+    parser.add_argument('--mixup-prob', type=float, default=0.0,
                         help='Probability of performing mixup or cutmix when either/both is enabled')
-    parser.add_argument('--mixup-switch-prob', type=float, default=0.5,
+    parser.add_argument('--mixup-switch-prob', type=float, default=0.0,
                         help='Probability of switching to cutmix when both mixup and cutmix enabled')
     parser.add_argument('--mixup-mode', type=str, default='batch',
                         help='How to apply mixup/cutmix params. Per "batch", "pair", or "elem"')
@@ -153,19 +153,19 @@ def get_args_parser():
     parser.add_argument('--attn-only', action='store_true') 
     
     # Dataset parameters
-    parser.add_argument('--data', default='/datasets01/imagenet_full_size/061417/', type=str,
+    parser.add_argument('--dataset_root_path', default='../../data/cub/CUB_200_2011', type=str,
                         help='dataset path')
-    parser.add_argument('--dataset', default='imagenet', choices=['imagenet', 'nabirds', "coco", "nuswide"],
+    parser.add_argument('--dataset_name', default='imagenet', choices=['imagenet', 'nabirds', "coco", "nuswide"],
                         type=str, help='Image Net dataset path')
     parser.add_argument('--inat-category', default='name',
                         choices=['kingdom', 'phylum', 'class', 'order', 'supercategory', 'family', 'genus', 'name'],
                         type=str, help='semantic granularity')
 
-    parser.add_argument('--output_dir', default='',
+    parser.add_argument('--output_dir', default='results_train',
                         help='path where to save, empty for no saving')
     parser.add_argument('--device', default='cuda',
                         help='device to use for training / testing')
-    parser.add_argument('--seed', default=0, type=int)
+    parser.add_argument('--seed', default=1, type=int)
     parser.add_argument('--resume', default='', help='resume from checkpoint')
     parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
                         help='start epoch')
@@ -184,8 +184,8 @@ def get_args_parser():
     parser.add_argument('--dist_url', default='env://', help='url used to set up distributed training')
 
 
-    parser.add_argument("--wandb_project", default="Token Reduction Training", type=str)
-    parser.add_argument("--wandb_group", default="MISC", type=str)
+    parser.add_argument("--wandb_project", default="TokenReduction", type=str)
+    parser.add_argument("--wandb_group", default="nycu_pcs", type=str)
 
     parser.add_argument('--backbone_lr_scale', default=1.0, type=float, help="")
     parser.add_argument('--backbone_freeze_steps', default=0, type=int, help="")
@@ -204,7 +204,39 @@ def get_args_parser():
     
     parser.add_argument('--reduction_loc', type=int, nargs='+', default=[]) 
     parser.add_argument('--keep_rate', type=float, nargs='+', default=[])
+    # folders with images (can be same: those where it's all stored in 'data')
+    parser.add_argument('--folder_train', type=str, default='images',
+                        help='the directory where images are stored, ex: dataset_root_path/train/')
+    parser.add_argument('--folder_val', type=str, default='images',
+                        help='the directory where images are stored, ex: dataset_root_path/val/')
+    parser.add_argument('--folder_test', type=str, default='images',
+                        help='the directory where images are stored, ex: dataset_root_path/test/')
     
+    # df files with img_dir, class_id
+    parser.add_argument('--df_train', type=str, default='train.csv',
+                        help='the df csv with img_dirs, targets, def: train.csv')
+    parser.add_argument('--df_trainval', type=str, default='train_val.csv',
+                        help='the df csv with img_dirs, targets, def: train_val.csv')
+    parser.add_argument('--df_val', type=str, default='val.csv',
+                        help='the df csv with img_dirs, targets, def: val.csv')
+    parser.add_argument('--df_test', type=str, default='test.csv',
+                        help='the df csv with img_dirs, targets, root/test.csv')
+    parser.add_argument('--df_classid_classname', type=str, default='classid_classname.csv',
+                        help='the df csv with classnames and class ids, root/classid_classname.csv')
+
+    parser.add_argument('--train_trainval', action='store_false',
+                        help='when true uses trainval for train and evaluates on test \
+                        otherwise use train for train and evaluates on val')
+    parser.add_argument("--cfg", type=str,
+                        help="If using it overwrites args and reads yaml file in given path")
+    parser.add_argument("--cfg_is", type=str,
+                        help="If using it overwrites args and reads yaml file in given path")
+    parser.add_argument("--cfg_method", type=str,
+                        help="If using it overwrites args and reads yaml file in given path")
+    parser.add_argument("--project_name", type=str, default='InputPruning')
+
+    parser.add_argument('--serial', type=int, default=0)
+    parser.add_argument('--debugging', action='store_true')
     if "dyvit" in temp_args.model.lower():
         parser.add_argument('--token_distill_weight', default=0.5, type=float)
         parser.add_argument('--cls_distill_weight', default=0.5, type=float)
@@ -264,8 +296,10 @@ def main(args):
 
     cudnn.benchmark = True
 
-    dataset_train, args.num_classes = build_dataset(args.data, args.dataset, "train", args=args)
-    dataset_val, _ = build_dataset(args.data, args.dataset, "val", args=args)
+    # dataset_train, args.num_classes = build_dataset(args.data, args.dataset, "train", args=args)
+    dataset_train, args.num_classes = build_dataset(is_train=True, args=args)
+    # dataset_val, _ = build_dataset(args.data, args.dataset, "val", args=args)
+    dataset_val, _ = build_dataset(is_train=False, args=args)
 
     if utils.is_main_process():
         print(args.dataset, args.num_classes, len(dataset_train), len(dataset_val))
@@ -541,11 +575,11 @@ def main(args):
         evaluate = evaluate_multiclass
 
 
-    test_stats = evaluate(data_loader_val, model, device)
+    test_stats = evaluate(data_loader_val, model, device, amp_autocast)
     
     if utils.is_main_process():
         max_accuracy = test_stats["acc1"]
-        log_stats = {**{f'val_{k}': v for k, v in test_stats.items()},
+        log_stats = {**{f'val_{k}': v for k, v in test_stats1.items()},
                         "max_accuracy": max_accuracy}
         
         if model_ema is not None and not args.model_ema_force_cpu:
@@ -617,8 +651,15 @@ def main(args):
                         'args': args,
                     }, checkpoint_path)
                 
-
-            test_stats = evaluate(data_loader_val, model, device, amp_autocast)
+            test_interval = 30
+            if epoch % test_interval == 0 or epoch == args.epochs - 1:
+                test_stats = evaluate(data_loader_val, model, device, amp_autocast)
+                print(f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%")
+                max_accuracy = max(max_accuracy, test_stats["acc1"])
+                print(f'Max accuracy: {max_accuracy:.2f}%')
+                test_stats1 = {f'test_{k}': v for k, v in test_stats.items()}
+            else:
+                test_stats1 = {}
             
             max_accuracy_flag = False
 
@@ -694,7 +735,7 @@ def main(args):
                  
             if utils.is_main_process():
                 log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
-                            **{f'val_{k}': v for k, v in test_stats.items()},
+                            **{f'val_{k}': v for k, v in test_stats1.items()},
                             "max_accuracy": max_accuracy}
                 status_print = f"Epoch: {epoch}\tDataset: {len(dataset_val)}\tAcc@1: {test_stats['acc1']:.1f}%"
 
@@ -713,10 +754,24 @@ def main(args):
                     f.write(json.dumps(log_stats) + "\n")
 
     total_time = time.time() - start_time
+    time_total = round(total_time / 60, 2)  # mins
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
+    print('Training time {}'.format(total_time_str))
+
+    no_params = round(no_params / (1e6), 2)  # millions of parameters
+
+    max_memory = torch.cuda.max_memory_reserved() / (1024 ** 3)
+    max_memory = round(max_memory, 2)
+    test_acc = test_stats['acc1']
     if utils.is_main_process():
         print('Training time {}'.format(total_time_str))
-        wandb.finish()
+        if not args.debugging:
+            wandb.run.summary['no_params'] = no_params
+            wandb.run.summary['time_total'] = time_total
+            wandb.run.summary['max_memory'] = max_memory
+            wandb.run.summary['test_acc'] = test_acc
+            wandb.run.summary['best_acc'] = max_accuracy
+            wandb.finish()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('DeiT training and evaluation script', parents=[get_args_parser()])

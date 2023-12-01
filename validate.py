@@ -70,7 +70,8 @@ def validate(args, _logger):
     args.remode = ""
     args.recount = 0
 
-    dataset_val, args.num_classes = build_dataset(args.data, args.dataset, "val", args=args)
+    # dataset_val, args.num_classes = build_dataset(args.data, args.dataset, "val", args=args)
+    dataset_val, args.num_classes = build_dataset(is_train=False, args=args)
     sampler_val = torch.utils.data.SequentialSampler(dataset_val)
 
     data_loader_val = torch.utils.data.DataLoader(
